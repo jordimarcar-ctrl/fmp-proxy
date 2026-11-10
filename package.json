@@ -1,14 +1,12 @@
 {
   "name": "fmp-proxy",
   "version": "1.0.0",
-  "description": "Proxy para FMP Hockey",
+  "description": "Proxy espejo para FMP Hockey",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "axios": "^1.6.8",
-    "cheerio": "^1.0.0-rc.12",
     "express": "^4.18.2",
     "http-proxy-middleware": "^2.0.6"
   }
