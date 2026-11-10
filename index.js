@@ -8,7 +8,7 @@ puppeteer.use(StealthPlugin());
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// 1. Ruta para que Make.com obtenga los datos limpios en JSON
+// Ruta API para Make.com
 app.get('/league/:id', async (req, res) => {
   const leagueId = req.params.id;
   const targetUrl = `https://www.hockeypatines.fmp.es/competicion/${leagueId}`;
@@ -21,22 +21,29 @@ app.get('/league/:id', async (req, res) => {
     });
 
     const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
-    await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
+    // 1. Paso previo: Entrar a la portada para cargar sesión/cookies
+    await page.goto('https://www.hockeypatines.fmp.es/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    
+    // 2. Ir directamente a la competición deseada
+    await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 40000 });
+
+    // 3. Extraer los datos de la tabla de partidos
     const matches = await page.evaluate(() => {
       const rows = document.querySelectorAll('table tr');
       const parsed = [];
-      rows.forEach((row, i) => {
-        if (i === 0) return;
+      
+      rows.forEach((row) => {
         const cols = row.querySelectorAll('td');
-        if (cols.length >= 3) {
+        if (cols.length >= 4) {
+          const rawTexts = Array.from(cols).map(c => c.innerText.trim());
           parsed.push({
-            fecha: cols[0] ? cols[0].innerText.trim() : '',
-            hora: cols[1] ? cols[1].innerText.trim() : '',
-            local: cols[2] ? cols[2].innerText.trim() : '',
-            visitante: cols[3] ? cols[3].innerText.trim() : '',
-            pista: cols[4] ? cols[4].innerText.trim() : ''
+            fecha: rawTexts[0] || '',
+            hora: rawTexts[1] || '',
+            local: rawTexts[2] || '',
+            visitante: rawTexts[3] || '',
+            pista: rawTexts[4] || ''
           });
         }
       });
@@ -44,14 +51,21 @@ app.get('/league/:id', async (req, res) => {
     });
 
     await browser.close();
-    res.json({ success: true, league_id: leagueId, matches });
+
+    res.json({
+      success: true,
+      league_id: leagueId,
+      total_matches: matches.length,
+      matches: matches
+    });
+
   } catch (error) {
     if (browser) await browser.close();
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// 2. Proxy inverso para clonar y navegar la web original de la Federación
+// Proxy para navegación visual clonada
 app.use('/', createProxyMiddleware({
   target: 'https://www.hockeypatines.fmp.es',
   changeOrigin: true,
@@ -59,5 +73,5 @@ app.use('/', createProxyMiddleware({
 }));
 
 app.listen(PORT, () => {
-  console.log(`Servidor escuchando en puerto ${PORT}`);
+  console.log(`Servidor en puerto ${PORT}`);
 });
