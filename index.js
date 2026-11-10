@@ -6,22 +6,34 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Endpoint directo JSON para Make.com
+// Endpoint directo JSON para Make.com con manejo de sesión
 app.get('/league/:id', async (req, res) => {
   const leagueId = req.params.id;
-  const targetUrl = `https://www.hockeypatines.fmp.es/competicion/${leagueId}`;
 
   try {
-    // 1. Obtener el HTML directamente simulando navegador
-    const response = await axios.get(targetUrl, {
+    // 1. Crear una instancia de Axios que mantenga las cookies entre peticiones
+    const client = axios.create({
+      withCredentials: true,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+      }
+    });
+
+    // 2. Visitar primero la portada de la FMP para inicializar la sesión/cookies
+    const homeRes = await client.get('https://www.hockeypatines.fmp.es/');
+    const cookieHeader = homeRes.headers['set-cookie'];
+
+    // 3. Consultar la liga usando las cookies generadas
+    const targetUrl = `https://www.hockeypatines.fmp.es/?id_liga=${leagueId}`;
+    const response = await client.get(targetUrl, {
+      headers: {
+        'Cookie': cookieHeader ? cookieHeader.join('; ') : '',
         'Referer': 'https://www.hockeypatines.fmp.es/'
       }
     });
 
-    // 2. Analizar el HTML recibido
+    // 4. Procesar el HTML
     const $ = cheerio.load(response.data);
     const matches = [];
 
@@ -54,7 +66,7 @@ app.get('/league/:id', async (req, res) => {
   }
 });
 
-// Espejo visual para el navegador
+// Proxy espejo visual
 app.use('/', createProxyMiddleware({
   target: 'https://www.hockeypatines.fmp.es',
   changeOrigin: true,
@@ -62,5 +74,5 @@ app.use('/', createProxyMiddleware({
 }));
 
 app.listen(PORT, () => {
-  console.log(`Servidor en puerto ${PORT}`);
+  console.log(`Servidor escuchando en puerto ${PORT}`);
 });
