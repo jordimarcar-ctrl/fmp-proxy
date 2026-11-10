@@ -1,14 +1,12 @@
 const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-
-puppeteer.use(StealthPlugin());
+const puppeteer = require('puppeteer-core');
+const chromium = require('@sparticuz/chromium');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Ruta API para Make.com
+// Ruta JSON para Make.com
 app.get('/league/:id', async (req, res) => {
   const leagueId = req.params.id;
   const targetUrl = `https://www.hockeypatines.fmp.es/competicion/${leagueId}`;
@@ -16,20 +14,19 @@ app.get('/league/:id', async (req, res) => {
   let browser;
   try {
     browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless
     });
 
     const page = await browser.newPage();
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
-    // 1. Paso previo: Entrar a la portada para cargar sesión/cookies
+    // Cargar sesión original e ir a la competición
     await page.goto('https://www.hockeypatines.fmp.es/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    
-    // 2. Ir directamente a la competición deseada
     await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 40000 });
 
-    // 3. Extraer los datos de la tabla de partidos
     const matches = await page.evaluate(() => {
       const rows = document.querySelectorAll('table tr');
       const parsed = [];
@@ -65,7 +62,7 @@ app.get('/league/:id', async (req, res) => {
   }
 });
 
-// Proxy para navegación visual clonada
+// Proxy para la web visual completa
 app.use('/', createProxyMiddleware({
   target: 'https://www.hockeypatines.fmp.es',
   changeOrigin: true,
