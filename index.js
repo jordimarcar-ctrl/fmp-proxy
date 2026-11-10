@@ -27,30 +27,57 @@ const server = http.createServer((req, res) => {
     const idm = parsedUrl.query.idm || '1';
     const idc = parsedUrl.query.idc || '4870';
     
-    // Apuntamos al index principal de la federación donde se gestiona la liga
-    const targetUrl = `https://www.server2.sidgad.es/rfep/index.php?idm=${idm}&idc=${idc}`;
-
-    const options = {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
-        'Referer': 'https://www.server2.sidgad.es/rfep/',
-        'Cookie': 'PHPSESSID=fmp_session_active_12345'
-      }
+    // PASO 1: Visitar la página previa (portales.php) para inicializar la sesión y capturar cookies
+    const handshakeUrl = `https://www.server2.sidgad.es/rfep/portales.php?idm=${idm}&idc=${idc}`;
+    
+    const commonHeaders = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+      'Accept-Language': 'es-ES,es;q=0.9'
     };
 
-    https.get(targetUrl, options, (proxyRes) => {
-      let data = '';
-      proxyRes.on('data', chunk => data += chunk);
-      proxyRes.on('end', () => {
-        res.writeHead(proxyRes.statusCode, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(data);
+    https.get(handshakeUrl, { headers: commonHeaders }, (handshakeRes) => {
+      // Extraer las cookies de sesión que devuelve el servidor
+      const setCookie = handshakeRes.headers['set-cookie'] || [];
+      const cookieHeader = Array.isArray(setCookie) 
+        ? setCookie.map(c => c.split(';')[0]).join('; ') 
+        : '';
+
+      // Consumir el stream de la primera respuesta
+      let handshakeData = '';
+      handshakeRes.on('data', chunk => handshakeData += chunk);
+      handshakeRes.on('end', () => {
+        
+        // PASO 2: Llamar al script de partidos real (fmp_mc_1.php) usando la cookie obtenida
+        const targetUrl = `https://www.server2.sidgad.es/rfep/fmp_mc_1.php?idm=${idm}&idc=${idc}`;
+        
+        const targetOptions = {
+          headers: {
+            ...commonHeaders,
+            'Referer': handshakeUrl,
+            'Cookie': cookieHeader,
+            'Host': 'www.server2.sidgad.es'
+          }
+        };
+
+        https.get(targetUrl, targetOptions, (targetRes) => {
+          let data = '';
+          targetRes.on('data', chunk => data += chunk);
+          targetRes.on('end', () => {
+            res.writeHead(targetRes.statusCode, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(data);
+          });
+        }).on('error', err => {
+          res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+          res.end(`Error en la petición de partidos: ${err.message}`);
+        });
+
       });
     }).on('error', err => {
       res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
-      res.end(`Error en el proxy: ${err.message}`);
+      res.end(`Error en la sesión inicial: ${err.message}`);
     });
+
     return;
   }
 
