@@ -19,29 +19,37 @@ const server = http.createServer((req, res) => {
 
   if (parsedUrl.pathname === '/') {
     res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('Servidor Proxy FMP activo y listo.');
+    res.end('Servidor Proxy Universal activo y listo.');
     return;
   }
 
   if (parsedUrl.pathname === '/api/proxy') {
-    const idm = parsedUrl.query.idm || '1';
-    const idc = parsedUrl.query.idc || '4870';
-    
-    // Apuntamos directamente a la página del portal que contiene la competición
-    const targetUrl = `https://www.server2.sidgad.es/rfep/portales.php?idm=${idm}&idc=${idc}`;
+    const targetUrl = parsedUrl.query.url;
+
+    if (!targetUrl) {
+      res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Error: Falta el parámetro ?url= en la petición.');
+      return;
+    }
+
+    const parsedTarget = url.parse(targetUrl);
 
     const options = {
+      hostname: parsedTarget.hostname,
+      path: parsedTarget.path,
+      method: 'GET',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'es-ES,es;q=0.9',
-        'Referer': 'https://www.server2.sidgad.es/',
-        'Host': 'www.server2.sidgad.es',
-        'Connection': 'keep-alive'
+        'Referer': `https://${parsedTarget.hostname}/`,
+        'Host': parsedTarget.hostname
       }
     };
 
-    https.get(targetUrl, options, (proxyRes) => {
+    const client = parsedTarget.protocol === 'https:' ? https : http;
+
+    client.get(options, (proxyRes) => {
       let data = '';
       proxyRes.on('data', chunk => data += chunk);
       proxyRes.on('end', () => {
