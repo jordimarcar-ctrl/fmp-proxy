@@ -5,7 +5,6 @@ const url = require('url');
 const PORT = process.env.PORT || 3000;
 
 const server = http.createServer((req, res) => {
-  // Cabeceras CORS manuales
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -27,17 +26,22 @@ const server = http.createServer((req, res) => {
   if (parsedUrl.pathname === '/api/proxy') {
     const idm = parsedUrl.query.idm || '1';
     const idc = parsedUrl.query.idc || '4870';
-    const targetUrl = `https://www.server2.sidgad.es/rfep/fmp_mc_1.php?idm=${idm}&idc=${idc}`;
-
+    
     const options = {
+      hostname: 'www.server2.sidgad.es',
+      path: `/rfep/fmp_mc_1.php?idm=${idm}&idc=${idc}`,
+      method: 'GET',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Referer': 'https://www.server2.sidgad.es/'
+        'Host': 'www.server2.sidgad.es',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'es-ES,es;q=0.9',
+        'Referer': `https://www.server2.sidgad.es/rfep/portales.php?idm=${idm}&idc=${idc}`,
+        'Connection': 'keep-alive'
       }
     };
 
-    https.get(targetUrl, options, (proxyRes) => {
+    https.get(options, (proxyRes) => {
       let data = '';
       proxyRes.on('data', chunk => data += chunk);
       proxyRes.on('end', () => {
