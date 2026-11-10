@@ -27,9 +27,10 @@ const server = http.createServer((req, res) => {
     const idm = parsedUrl.query.idm || '1';
     const idc = parsedUrl.query.idc || '4870';
     
+    // Apuntamos a la raíz del portal con la competición
     const options = {
       hostname: 'www.server2.sidgad.es',
-      path: `/rfep/portales.php?idm=${idm}&idc=${idc}`,
+      path: `/rfep/index.php?idm=${idm}&idc=${idc}`,
       method: 'GET',
       headers: {
         'Host': 'www.server2.sidgad.es',
