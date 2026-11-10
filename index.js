@@ -4,7 +4,7 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Espejo proxy transparente y directo para todas las ligas y navegación
+// Proxy transparente hacia la FMP
 app.use('/', createProxyMiddleware({
   target: 'https://www.hockeypatines.fmp.es',
   changeOrigin: true,
