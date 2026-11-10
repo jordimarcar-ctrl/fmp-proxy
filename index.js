@@ -4,7 +4,7 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Espejo visual completo de la Federación
+// Redirige todo el tráfico visual como un espejo transparente de la FMP
 app.use('/', createProxyMiddleware({
   target: 'https://www.hockeypatines.fmp.es',
   changeOrigin: true,
