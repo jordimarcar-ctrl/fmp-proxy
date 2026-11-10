@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const https = require('https');
-const url = require('url');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,10 +12,12 @@ app.get('/', (req, res) => {
   res.send('Servidor Proxy FMP activo y listo.');
 });
 
-// Proxy universal: redirige a fmp_mc_1.php manteniendo los parámetros que le pases
+// Proxy hacia fmp_mc_1.php usando parámetros directos
 app.get('/api/proxy', (req, res) => {
-  const queryString = url.parse(req.url).search || '';
-  const targetUrl = `https://www.server2.sidgad.es/rfep/fmp_mc_1.php${queryString}`;
+  const idm = req.query.idm || '1';
+  const idc = req.query.idc || '4870';
+  
+  const targetUrl = `https://www.server2.sidgad.es/rfep/fmp_mc_1.php?idm=${idm}&idc=${idc}`;
 
   const options = {
     headers: {
@@ -34,10 +35,10 @@ app.get('/api/proxy', (req, res) => {
       res.status(response.statusCode).send(data);
     });
   }).on('error', err => {
-    res.status(500).send(`Error: ${err.message}`);
+    res.status(500).send(`Error en el proxy: ${err.message}`);
   });
 });
 
 app.listen(PORT, () => {
-  console.log(`Puerto ${PORT}`);
+  console.log(`Servidor activo en el puerto ${PORT}`);
 });
